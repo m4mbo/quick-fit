@@ -140,16 +140,12 @@ public class MemoryMgmt {
 
         sbrk(actualSize);
 
-        // Search for new freeblock *we can skip tail search*
-        int extensionPointer = checkBins(actualSize);
+        // Search for new freeblock *we can skip tail and bin search*
+        int extensionPointer = checkMisc(actualSize);
 
-        if (extensionPointer != NULL) {
-            allocateSpace(actualSize, extensionPointer, true);
-        } else {
-            extensionPointer = checkMisc(actualSize);
-            if (extensionPointer == NULL) throw new MemoryError("Memory request failed.");
-            allocateSpace(actualSize, extensionPointer, false);
-        }
+        if (extensionPointer == NULL) throw new MemoryError("Memory request failed.");
+        
+        allocateSpace(actualSize, extensionPointer, false);
         
         System.out.print("memory allocated.\n");
         System.out.print("Pointer: " + integerToHex(extensionPointer+2*WORD) + "\n\n");
@@ -168,7 +164,7 @@ public class MemoryMgmt {
             return;
         }
 
-        System.out.print("Freeing pointer " + integerToHex(ptr) + " ...");
+        System.out.print("Freeing pointer " + integerToHex(ptr) + " ... ");
 
         if (!(getByte(ptr-WORD) instanceof FlaggedByte)) {
             System.out.print("Exception triggered in thread. Exiting.\n\n");
@@ -191,7 +187,7 @@ public class MemoryMgmt {
         System.out.print("memory freed.\n\n");
     }
 
-    public void sbrk(int size) {
+    public Byte[] sbrk(int size) {
 
         int closestPower = 0;
 
@@ -199,7 +195,9 @@ public class MemoryMgmt {
         while(true) {
             closestPower = (int) Math.pow(2, i);
             // Add 2 WORDS to power due to the extra 2 cells for metadata at the end
-            if (size <= closestPower+2*WORD) break;
+            if (size == closestPower-2*WORD) break;
+            // Preventing unreacheable memory, we need the freeblock at the end
+            if (((closestPower-2*WORD)-size >= 16)) break;
             i++;
         }
 
@@ -222,31 +220,25 @@ public class MemoryMgmt {
         }
 
         heapExtensions.add(extension);
+        
+        // Adding newly created free block to misc 
+        misc.addToList(macroPointer);
 
-        // Adding free block to list
-        getListOrigin(closestPower-2*WORD).addToList(macroPointer);
-
+        return extension;
     }
-
+    
+    // Running tests
     public void print() {
-        
-        // Test 1
-
-        System.out.print("Running Test 1 ...\n\n");
-
-        int ptr1 = malloc(8000);
-        
-        int ptr2 = malloc(9000);
-
-        int ptr3 = malloc(20000);
-
-        int ptr4 = malloc(10000);
-
-        free(ptr4);
-        free(ptr3);
-
-        malloc(30000);
-
+        test1();
+        test2();
+        test3();
+        test4();
+        test5();
+        test6();
+        test7();
+        test8();
+        test9();
+        test10();
     }
 
     public int checkBins(int size) {
@@ -267,7 +259,7 @@ public class MemoryMgmt {
         if (tail == memorySize-3*WORD) return NULL;
 
         // Calculating remaining memory after hypothetical tail allocation
-        int tailRemainingSize = ((FlaggedByte) heap[memorySize-(2*WORD)]).length - size;
+        int tailRemainingSize = ((FlaggedByte) heap[tail+WORD]).length - size;
 
         /*
          * Accepting only if block fits perfectly
@@ -344,6 +336,8 @@ public class MemoryMgmt {
                     // We add the new freeblock to its respective list
                     getListOrigin(blockSize-size).addToList(freeblock+size);
                 }
+            } else {
+                if (freeblock == tail) tail = freeblock+size;
             }
         }
     }
@@ -444,6 +438,19 @@ public class MemoryMgmt {
         setByte(intersection+3*WORD, null);
     }
 
+    public void storeData(int ptr, String data) {
+        System.out.print("Storing '" + data + "' at address " + integerToHex(ptr) + " ... ");
+        setByte(ptr, new DataByte(data));
+        System.out.print("stored.\n\n");
+    }
+    
+    public String retrieveData(int ptr) {
+        System.out.print("Retrieving data at address " + integerToHex(ptr) + " ... ");
+        String data = ((DataByte)getByte(ptr)).data;
+        System.out.print("'" + data + "' retrieved.\n\n");
+        return data;
+    } 
+
     /*
      * Helper methods
      */
@@ -456,7 +463,7 @@ public class MemoryMgmt {
         if (visualize == null) return;
         visualize.update();
         try {
-            Thread.sleep(2000);
+            Thread.sleep(1000);
         } catch (InterruptedException e) {}
     }
 
@@ -545,7 +552,6 @@ public class MemoryMgmt {
         }
 
         return "0x" + hex;
-        
     }
 
     /*
@@ -696,46 +702,185 @@ public class MemoryMgmt {
 
     // Tests
 
+    public void testHeader(int number, boolean reset, String description) {
+        if (reset) initializeMemory();
+        System.out.print("===================================\n\n");
+        System.out.print("Running test number " + number + " ...\n\n");
+        System.out.print("Description: " + description + "\n\n");
+        System.out.print("HEAD pointer: " + integerToHex(tail) + "\n\n");
+    }
+
     public void test1() {
-
-        System.out.println("");
-
+        testHeader(1, true, "Required.");
+        int ptr1 = malloc(28);
+        refreshGUI();
+        storeData(ptr1, "string");
+        retrieveData(ptr1);
+        free(ptr1);
+        refreshGUI();
     }
 
     public void test2() {
-
+        testHeader(2, true, "Required.");
+        int ptr1 = malloc(28);
+        refreshGUI();
+        int ptr2 = malloc(1024);
+        refreshGUI();
+        int ptr3 = malloc(28);
+        refreshGUI();
+        free(ptr2);
+        refreshGUI();
+        int ptr4 = malloc(512);
+        refreshGUI();
+        free(ptr1);
+        refreshGUI();
+        free(ptr3);
+        refreshGUI();
+        free(ptr4);
+        refreshGUI();
     }
 
     public void test3() {
-
+        testHeader(3, true, "Required.");
+        int ptr1 = malloc(8150);
+        refreshGUI();
+        int ptr2 = malloc(72);
+        refreshGUI();
+        free(ptr1);
+        refreshGUI();
+        free(ptr2);
+        refreshGUI();
     }
 
     public void test4() {
-
+        testHeader(4, true, "Required.");
+        malloc(1024);
+        refreshGUI();
+        int ptr1 = malloc(28);
+        refreshGUI();
+        free(ptr1);
+        refreshGUI();
+        free(ptr1);
+        refreshGUI();
     }
 
     public void test5() {
-
+        testHeader(5, true, "Quick-fit bin allocation.");
+        int ptr1 = malloc(16);
+        refreshGUI();
+        int ptr2 = malloc(24);
+        refreshGUI();
+        int ptr3 = malloc(32);
+        refreshGUI();
+        int ptr4 = malloc(512);
+        refreshGUI();
+        free(ptr1);
+        refreshGUI();
+        free(ptr2);
+        refreshGUI();
+        free(ptr3);
+        refreshGUI();
+        free(ptr4);
+        refreshGUI();
+        malloc(24);
+        refreshGUI();
+        malloc(16);
+        refreshGUI();
+        malloc(32);
+        refreshGUI();
     }
 
     public void test6() {
-
+        testHeader(6, true, "First Fit misc allocation.");
+        int ptr1 = malloc(230);
+        refreshGUI();
+        int ptr2 = malloc(100);
+        refreshGUI();
+        malloc(7750);
+        refreshGUI();
+        free(ptr1);
+        refreshGUI();
+        free(ptr2);
+        refreshGUI();
+        int ptr3 = malloc(50);  
+        refreshGUI();
+        storeData(ptr3, "stored in 108 free block as it is the first in the misc list");
+        retrieveData(ptr3);
+        free(ptr3);
+        refreshGUI();
     }
 
     public void test7() {
-
+        testHeader(7, true, "Minimum malloc allocation set to 8 bytes to aviod unreacheable memory.");
+        int ptr1 = malloc(1);
+        refreshGUI();
+        storeData(ptr1, "minimum space is 8");
+        retrieveData(ptr1);
+        int ptr2 = malloc(24);
+        refreshGUI();
+        malloc(2);
+        refreshGUI();
+        malloc(512);
+        refreshGUI();
+        free(ptr1);
+        refreshGUI();
+        free(ptr2);
+        refreshGUI();
     }
 
-    public void test8() {
-
+    public void test8() {   
+        testHeader(7, true, "Lazy coalescing, free lists.");
+        int ptr1 = malloc(8);
+        refreshGUI();
+        int ptr2 = malloc(20);
+        refreshGUI();
+        int ptr3 = malloc(32);
+        refreshGUI();
+        malloc(8092);
+        refreshGUI();
+        free(ptr1);
+        refreshGUI();
+        free(ptr2);
+        refreshGUI();
+        free(ptr3);
+        refreshGUI();
+        malloc(76);
     }
 
     public void test9() {
-
+        testHeader(7, true, "Lazy coalescing, tail.");
+        int ptr1 = malloc(1);
+        refreshGUI();
+        storeData(ptr1, "minimum space is 8");
+        retrieveData(ptr1);
+        int ptr2 = malloc(24);
+        refreshGUI();
+        malloc(2);
+        refreshGUI();
+        malloc(512);
+        refreshGUI();
+        free(ptr1);
+        refreshGUI();
+        free(ptr2);
+        refreshGUI();
     }
 
     public void test10() {
-
+        testHeader(7, true, "Lazy coalescing, sbrk allocated area.");
+        int ptr1 = malloc(1);
+        refreshGUI();
+        storeData(ptr1, "minimum space is 8");
+        retrieveData(ptr1);
+        int ptr2 = malloc(24);
+        refreshGUI();
+        malloc(2);
+        refreshGUI();
+        malloc(512);
+        refreshGUI();
+        free(ptr1);
+        refreshGUI();
+        free(ptr2);
+        refreshGUI();
     }
 
 }

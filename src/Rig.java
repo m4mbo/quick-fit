@@ -44,14 +44,16 @@ public class Rig {
 
             if (selectedOption == 0) { break; }
             Rig rig = new Rig();
-            System.out.println("Setting up problem...");
-        
+            
             switch (selectedOption) {
                 case 1: // single sensor
+                System.out.println("Setting up problem...");
                 rig.problem = new Freestyle(); 
                 break;
                 case 2: // multiple sensors
-                rig.problem = new Tests();
+                boolean GUI = inputGUI();
+                System.out.println("Setting up problem...");
+                rig.problem = new Tests(GUI);
                 break;
                 default:
                 System.out.println("I don't know what '" + line + "' is, please input a valid option." );
@@ -66,7 +68,35 @@ public class Rig {
         }
         System.exit(0);
     }  
+
+    public static boolean inputGUI() {
+        boolean GUI = false;
+        while (true) {
+            System.out.print("GUI [y/n]: " );
+            BufferedReader buffer = new BufferedReader(new InputStreamReader(System.in));
+            String line = "";
+            try {
+                line = buffer.readLine();
+                System.out.println();
+                if (line.equals("y")) {
+                    GUI = true;
+                    break;
+                } else if (line.equals("n")) {  
+                    GUI = false;
+                    break;
+                }
+                continue;
+            } catch (NumberFormatException e) {
+                System.out.println("I don't know what '" + line + "' is, please y or n." );
+                continue;
+            } catch (IOException e) {
+                System.out.println("IOException, quitting...");
+                break;
+            }
+        }
+        return GUI;
     }
+}
 
 
   

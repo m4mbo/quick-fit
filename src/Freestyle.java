@@ -165,7 +165,6 @@ public class Freestyle implements Problem {
         }
 
         return -1;
-
     }
 
     private class PointerVariable {

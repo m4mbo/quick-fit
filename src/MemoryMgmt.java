@@ -241,6 +241,7 @@ public class MemoryMgmt {
         test10();
         test11();
         test12();
+        test13();
     }
 
     public int checkBins(int size) {
@@ -902,6 +903,27 @@ public class MemoryMgmt {
         free(ptr1);
         refreshGUI();
         storeData(malloc(16), "quick allocation to bin 2");
+    }
+
+    public void test13() {
+        testHeader(13, true, "Bin coallescing resulting into a bigger bin (5 into 10), allowing only for perfect fit allocation.");
+        refreshGUI();
+        int ptr1 = malloc(40);
+        refreshGUI();
+        int ptr2 = malloc(40);
+        refreshGUI();
+        malloc(8080);
+        refreshGUI();
+        free(ptr1);
+        refreshGUI();
+        free(ptr2);
+        refreshGUI();
+        int ptr3 = malloc(72);
+        refreshGUI();
+        storeData(ptr3, "Although the hypothetical remaining space corresponds to 16, allowing for the creation of a new free block, the program requests for more memory as the newly coalesced block fits into bin 10, accepting only allocation calls of 88 bytes (88+8 = 96 -> 40+8 + 40+8 = 96)");
+        int ptr4 = malloc(88);
+        refreshGUI();
+        storeData(ptr4, "Blocks were coalesced in previous request, no merging is needed.");
     }
 
 }

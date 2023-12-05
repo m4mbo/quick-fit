@@ -159,7 +159,7 @@ public class MemoryMgmt {
      */
     public void free(int ptr) {
 
-        if (ptr <= 0){ 
+        if (ptr <= 4){ 
             System.out.print("Invalid pointer ... Exception triggered in thread. Exiting.\n\n");
             return;
         }
@@ -239,6 +239,8 @@ public class MemoryMgmt {
         test8();
         test9();
         test10();
+        test11();
+        test12();
     }
 
     public int checkBins(int size) {
@@ -256,7 +258,7 @@ public class MemoryMgmt {
     public int checkTail(int size, int freeblock) {
 
         // If the tail is pointing to the end
-        if (tail == memorySize-3*WORD) return NULL;
+        if (tail == memorySize-2*WORD) return NULL;
 
         // Calculating remaining memory after hypothetical tail allocation
         int tailRemainingSize = ((FlaggedByte) heap[tail+WORD]).length - size;
@@ -320,7 +322,6 @@ public class MemoryMgmt {
                 
             // if it is not a perfect fit, create a new free block
             if (blockSize != size) {
-                
                 setByte(freeblock+size+WORD, new FlaggedByte('F', blockSize-size, LengthType.LEN));
                 ((FlaggedByte) getByte(freeblock+blockSize)).length = blockSize - size;
 
@@ -361,8 +362,8 @@ public class MemoryMgmt {
      */
     public void coalescePass() {
 
-        // Check if tail can be coalesced
-        if (tail != memorySize-3*WORD && ((FlaggedByte) heap[tail]).flag == 'F') mergeAndDistribute(tail);
+        // Check if tail can be coalesced *propagating coalescing*
+        while (tail != memorySize-2*WORD && ((FlaggedByte) heap[tail]).flag == 'F') mergeAndDistribute(tail);
 
         // Misc search
         int current = misc.HEAD;  
@@ -409,13 +410,14 @@ public class MemoryMgmt {
 
         // Cleaning up metadata (PLEN and LEN) *good practice*
         setByte(intersection, null);
-        setByte(intersection, null);
- 
+        setByte(intersection+WORD, null);
+        
         // Updating length of new bigger free block
         ((FlaggedByte) getByte(intersection+length)).length = prevLength + length;
         ((FlaggedByte) getByte(intersection-prevLength+WORD)).length = prevLength + length;
 
         // Removing the left block from its list
+
         getListOrigin(prevLength).removeFromList(intersection-prevLength);
 
         // If we are not coalescing the tail (includes heap extensions)
@@ -632,7 +634,7 @@ public class MemoryMgmt {
 
             // Look for block
 
-            int current = misc.HEAD;                    // Current free block
+            int current = HEAD;                    // Current free block
 
             do {
                 if (current == freeblock) {
@@ -641,6 +643,7 @@ public class MemoryMgmt {
                     // Exchanging prev and next references of adjacent blocks
                     ((PointerByte) getByte(prevBlock+3*WORD)).pointer = nextBlock;
                     ((PointerByte) getByte(nextBlock+2*WORD)).pointer = prevBlock;
+                    break;
                 }
                 current = ((PointerByte) getByte(current+3*WORD)).pointer;   // Iterating to next free block in list
             } while (current != NULL);
@@ -765,7 +768,7 @@ public class MemoryMgmt {
     }
 
     public void test5() {
-        testHeader(5, true, "Quick-fit bin allocation.");
+        testHeader(5, true, "Quick fit bin allocation.");
         int ptr1 = malloc(16);
         refreshGUI();
         int ptr2 = malloc(24);
@@ -791,12 +794,12 @@ public class MemoryMgmt {
     }
 
     public void test6() {
-        testHeader(6, true, "First Fit misc allocation.");
+        testHeader(6, true, "First fit misc allocation.");
         int ptr1 = malloc(230);
         refreshGUI();
         int ptr2 = malloc(100);
         refreshGUI();
-        malloc(7750);
+        malloc(7830);
         refreshGUI();
         free(ptr1);
         refreshGUI();
@@ -811,7 +814,7 @@ public class MemoryMgmt {
     }
 
     public void test7() {
-        testHeader(7, true, "Minimum malloc allocation set to 8 bytes to aviod unreacheable memory.");
+        testHeader(7, true, "Minimum allocation set to 8 bytes to avoid unreacheable memory.");
         int ptr1 = malloc(1);
         refreshGUI();
         storeData(ptr1, "minimum space is 8");
@@ -828,15 +831,26 @@ public class MemoryMgmt {
         refreshGUI();
     }
 
-    public void test8() {   
-        testHeader(7, true, "Lazy coalescing, free lists.");
+    public void test8() {
+        testHeader(8, true, "Avoidance of unreacheable block creation. Memory will only be allocated if the free block's remaining space is 0 or if it allows for the creation of a new free block");
+        int ptr1 = malloc(8175);
+        refreshGUI();
+        storeData(ptr1, "avoiding the creation of an unreachable byte");
+        retrieveData(ptr1);
+        int ptr2 = malloc(8176);
+        refreshGUI();
+        storeData(ptr2, "perfect fit");
+    }
+
+    public void test9() {   
+        testHeader(9, true, "Lazy coalescing, free lists.");
         int ptr1 = malloc(8);
         refreshGUI();
         int ptr2 = malloc(20);
         refreshGUI();
         int ptr3 = malloc(32);
         refreshGUI();
-        malloc(8092);
+        free(malloc(8092));
         refreshGUI();
         free(ptr1);
         refreshGUI();
@@ -844,43 +858,50 @@ public class MemoryMgmt {
         refreshGUI();
         free(ptr3);
         refreshGUI();
-        malloc(76);
-    }
-
-    public void test9() {
-        testHeader(7, true, "Lazy coalescing, tail.");
-        int ptr1 = malloc(1);
-        refreshGUI();
-        storeData(ptr1, "minimum space is 8");
-        retrieveData(ptr1);
-        int ptr2 = malloc(24);
-        refreshGUI();
-        malloc(2);
-        refreshGUI();
-        malloc(512);
-        refreshGUI();
-        free(ptr1);
-        refreshGUI();
-        free(ptr2);
+        malloc(8176);
         refreshGUI();
     }
 
     public void test10() {
-        testHeader(7, true, "Lazy coalescing, sbrk allocated area.");
-        int ptr1 = malloc(1);
+        testHeader(10, true, "Lazy coalescing, tail.");
+        int ptr1 = malloc(3000);
         refreshGUI();
-        storeData(ptr1, "minimum space is 8");
-        retrieveData(ptr1);
-        int ptr2 = malloc(24);
-        refreshGUI();
-        malloc(2);
-        refreshGUI();
-        malloc(512);
+        int ptr2 = malloc(5000);
         refreshGUI();
         free(ptr1);
         refreshGUI();
         free(ptr2);
         refreshGUI();
+        malloc(8000);
+        refreshGUI();
+    }
+
+    public void test11() {
+        testHeader(11, false, "Lazy coalescing, sbrk allocated area.");
+        int ptr1 = malloc(8000);
+        refreshGUI();
+        int ptr2 = malloc(24);
+        refreshGUI();
+        free(ptr1);
+        refreshGUI();
+        free(ptr2);
+        refreshGUI();
+        malloc(8100);
+        refreshGUI();
+    }
+
+    public void test12() {
+        testHeader(12, true, "Quick fit on sbrk allocated area.");
+        refreshGUI();
+        int ptr1 = malloc(17);
+        refreshGUI();
+        malloc(8151);
+        refreshGUI();
+        free(malloc(16));
+        refreshGUI();
+        free(ptr1);
+        refreshGUI();
+        storeData(malloc(16), "quick allocation to bin 2");
     }
 
 }

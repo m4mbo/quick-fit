@@ -14,7 +14,7 @@ public class MemoryMgmt {
 
     private final int WORD = 4;             // 32-bit system
     private final int NULL = -1;            
-
+    
     private final int minQL = 1;
     private final int maxQL = 16;
 
@@ -85,8 +85,10 @@ public class MemoryMgmt {
                 System.out.print("Exception triggered in thread. Exiting.\n\n");
                 return NULL;
             }
-        
-            int pointer = checkBins(actualSize);
+            
+            // Bins
+
+            int pointer = checkBins(actualSize);  
 
             if (pointer != NULL) {
 
@@ -98,6 +100,8 @@ public class MemoryMgmt {
                 return pointer+2*WORD;
 
             } else {
+
+                // Tail 
 
                 pointer = checkTail(actualSize, tail);
 
@@ -111,6 +115,8 @@ public class MemoryMgmt {
                     return pointer+2*WORD;
 
                 } else {
+
+                    // Miscellaneous list
 
                     pointer = checkMisc(actualSize);
 
@@ -185,6 +191,8 @@ public class MemoryMgmt {
         getListOrigin(blockSize).addToList(ptrToBlock);
 
         System.out.print("memory freed.\n\n");
+
+        refreshGUI();
     }
 
     public Byte[] sbrk(int size) {
@@ -242,6 +250,7 @@ public class MemoryMgmt {
         test11();
         test12();
         test13();
+        test14();
     }
 
     public int checkBins(int size) {
@@ -309,6 +318,7 @@ public class MemoryMgmt {
                 
                 ((FlaggedByte) getByte(freeblock+size)).flag = 'U';
 
+                refreshGUI();
                 return;
             }
         } else {
@@ -342,6 +352,8 @@ public class MemoryMgmt {
                 if (freeblock == tail) tail = freeblock+size;
             }
         }
+
+        refreshGUI();
     }
 
     public FreeList getListOrigin(int blockSize) {
@@ -717,213 +729,147 @@ public class MemoryMgmt {
     public void test1() {
         testHeader(1, true, "Required.");
         int ptr1 = malloc(28);
-        refreshGUI();
         storeData(ptr1, "string");
         retrieveData(ptr1);
         free(ptr1);
-        refreshGUI();
     }
 
     public void test2() {
         testHeader(2, true, "Required.");
         int ptr1 = malloc(28);
-        refreshGUI();
         int ptr2 = malloc(1024);
-        refreshGUI();
         int ptr3 = malloc(28);
-        refreshGUI();
         free(ptr2);
-        refreshGUI();
         int ptr4 = malloc(512);
-        refreshGUI();
         free(ptr1);
-        refreshGUI();
         free(ptr3);
-        refreshGUI();
         free(ptr4);
-        refreshGUI();
     }
 
     public void test3() {
         testHeader(3, true, "Required.");
-        int ptr1 = malloc(8150);
-        refreshGUI();
-        int ptr2 = malloc(72);
-        refreshGUI();
+        int ptr1 = malloc(7168);
+        int ptr2 = malloc(1024);
         free(ptr1);
-        refreshGUI();
         free(ptr2);
-        refreshGUI();
     }
 
     public void test4() {
         testHeader(4, true, "Required.");
         malloc(1024);
-        refreshGUI();
         int ptr1 = malloc(28);
-        refreshGUI();
         free(ptr1);
-        refreshGUI();
         free(ptr1);
-        refreshGUI();
     }
 
     public void test5() {
         testHeader(5, true, "Quick fit bin allocation.");
         int ptr1 = malloc(16);
-        refreshGUI();
         int ptr2 = malloc(24);
-        refreshGUI();
         int ptr3 = malloc(32);
-        refreshGUI();
         int ptr4 = malloc(512);
-        refreshGUI();
         free(ptr1);
-        refreshGUI();
         free(ptr2);
-        refreshGUI();
-        free(ptr3);
-        refreshGUI();
+        free(ptr3);   
         free(ptr4);
-        refreshGUI();
         malloc(24);
-        refreshGUI();
         malloc(16);
-        refreshGUI();
         malloc(32);
-        refreshGUI();
     }
 
     public void test6() {
         testHeader(6, true, "First fit misc allocation.");
         int ptr1 = malloc(230);
-        refreshGUI();
         int ptr2 = malloc(100);
-        refreshGUI();
         malloc(7830);
-        refreshGUI();
         free(ptr1);
-        refreshGUI();
         free(ptr2);
-        refreshGUI();
         int ptr3 = malloc(50);  
-        refreshGUI();
         storeData(ptr3, "stored in 108 free block as it is the first in the misc list");
         retrieveData(ptr3);
         free(ptr3);
-        refreshGUI();
     }
 
     public void test7() {
         testHeader(7, true, "Minimum allocation set to 8 bytes to avoid unreacheable memory.");
         int ptr1 = malloc(1);
-        refreshGUI();
         storeData(ptr1, "minimum space is 8");
         retrieveData(ptr1);
         int ptr2 = malloc(24);
-        refreshGUI();
         malloc(2);
-        refreshGUI();
         malloc(512);
-        refreshGUI();
         free(ptr1);
-        refreshGUI();
         free(ptr2);
-        refreshGUI();
     }
 
     public void test8() {
         testHeader(8, true, "Avoidance of unreacheable block creation. Memory will only be allocated if the free block's remaining space is 0 or if it allows for the creation of a new free block");
         int ptr1 = malloc(8175);
-        refreshGUI();
         storeData(ptr1, "avoiding the creation of an unreachable byte");
         retrieveData(ptr1);
-        int ptr2 = malloc(8176);
-        refreshGUI();
+        int ptr2 = malloc(8176);  
         storeData(ptr2, "perfect fit");
     }
 
     public void test9() {   
         testHeader(9, true, "Lazy coalescing, free lists.");
         int ptr1 = malloc(8);
-        refreshGUI();
         int ptr2 = malloc(20);
-        refreshGUI();
         int ptr3 = malloc(32);
-        refreshGUI();
         free(malloc(8092));
-        refreshGUI();
         free(ptr1);
-        refreshGUI();
         free(ptr2);
-        refreshGUI();
         free(ptr3);
-        refreshGUI();
         malloc(8176);
-        refreshGUI();
     }
 
     public void test10() {
         testHeader(10, true, "Lazy coalescing, tail.");
         int ptr1 = malloc(3000);
-        refreshGUI();
         int ptr2 = malloc(5000);
-        refreshGUI();
         free(ptr1);
-        refreshGUI();
         free(ptr2);
-        refreshGUI();
         malloc(8000);
-        refreshGUI();
     }
 
     public void test11() {
         testHeader(11, false, "Lazy coalescing, sbrk allocated area.");
         int ptr1 = malloc(8000);
-        refreshGUI();
         int ptr2 = malloc(24);
-        refreshGUI();
         free(ptr1);
-        refreshGUI();
         free(ptr2);
-        refreshGUI();
         malloc(8100);
-        refreshGUI();
     }
 
     public void test12() {
         testHeader(12, true, "Quick fit on sbrk allocated area.");
-        refreshGUI();
         int ptr1 = malloc(17);
-        refreshGUI();
         malloc(8151);
-        refreshGUI();
         free(malloc(16));
-        refreshGUI();
         free(ptr1);
-        refreshGUI();
         storeData(malloc(16), "quick allocation to bin 2");
     }
 
     public void test13() {
-        testHeader(13, true, "Bin coallescing resulting into a bigger bin (5 into 10), allowing only for perfect fit allocation.");
-        refreshGUI();
+        testHeader(13, true, "Bin coallescing resulting into a bigger bin (5 into 10), allowing only for perfect fit allocation.");   
         int ptr1 = malloc(40);
-        refreshGUI();
         int ptr2 = malloc(40);
-        refreshGUI();
         malloc(8080);
-        refreshGUI();
-        free(ptr1);
-        refreshGUI();
+        free(ptr1);    
         free(ptr2);
-        refreshGUI();
         int ptr3 = malloc(72);
-        refreshGUI();
         storeData(ptr3, "Although the hypothetical remaining space corresponds to 16, allowing for the creation of a new free block, the program requests for more memory as the newly coalesced block fits into bin 10, accepting only allocation calls of 88 bytes (88+8 = 96 -> 40+8 + 40+8 = 96)");
-        int ptr4 = malloc(88);
-        refreshGUI();
+        int ptr4 = malloc(88);     
         storeData(ptr4, "Blocks were coalesced in previous request, no merging is needed.");
     }
 
+    public void test14() {
+        testHeader(14, true, "Sbrk closest power of 2.");      
+        int ptr1 = malloc(10240);       
+        int ptr2 = malloc(8176);       
+        malloc(3000);      
+        free(ptr1);  
+        free(ptr2);
+        malloc(5000);
+    }
 }
